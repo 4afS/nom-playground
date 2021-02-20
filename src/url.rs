@@ -1,10 +1,12 @@
-use nom::combinator::map_res;
+use std::unimplemented;
+
 use nom::{
     bytes::complete::tag,
     character::complete::{alpha1, alphanumeric1, char, digit1},
 };
+use nom::{combinator::map_res, sequence::delimited};
 use nom::{
-    multi::many1,
+    multi::{many0, many1, many_m_n},
     sequence::{terminated, tuple},
     IResult,
 };
@@ -102,6 +104,33 @@ fn parse_port(input: &str) -> IResult<&str, Option<Port>> {
 fn test_parse_port() {
     assert_eq!(parse_port(":80/a"), Ok(("/a", Some(Port(80)))));
     assert_eq!(parse_port("/a"), Ok(("/a", None)));
+}
+
+fn parse_path(input: &str) -> IResult<&str, Option<Path>> {
+    let (input, host) = many0(delimited(
+        many_m_n(0, 1, char('/')),
+        alphanumeric1,
+        many_m_n(0, 1, char('/')),
+    ))(input)?;
+
+    if !host.is_empty() {
+        Ok((input, Some(Path(format!("/{}", host.join("/"))))))
+    } else {
+        Ok((input, None))
+    }
+}
+
+#[test]
+fn test_parse_path() {
+    assert_eq!(
+        parse_path("/a/b?id=0"),
+        Ok(("?id=0", Some(Path("/a/b".to_string()))))
+    );
+    assert_eq!(
+        parse_path("/a?id=0"),
+        Ok(("?id=0", Some(Path("/a".to_string()))))
+    );
+    assert_eq!(parse_path("?id=0"), Ok(("?id=0", None)));
 }
 
 pub fn parse_url(_: &str) -> IResult<&str, URL> {
