@@ -31,12 +31,37 @@ pub struct URL {
     pub fragment_id: Option<FragmentId>,
 }
 
+fn parse_scheme(input: &str) -> IResult<&str, Scheme> {
+    let (input, scheme) = nom::branch::alt((
+        nom::bytes::complete::tag_no_case("http://"),
+        nom::bytes::complete::tag_no_case("https://"),
+    ))(input)?;
+
+    match scheme {
+        "http://" => Ok((input, Scheme::HTTP)),
+        "https://" => Ok((input, Scheme::HTTPS)),
+        _ => unimplemented!("no other schemes supported"),
+    }
+}
+
+#[test]
+fn test_parse_scheme() {
+    assert_eq!(
+        parse_scheme("http://example.com"),
+        Ok(("example.com", Scheme::HTTP))
+    );
+    assert_eq!(
+        parse_scheme("https://example.com"),
+        Ok(("example.com", Scheme::HTTPS))
+    );
+}
+
 pub fn parse_url(_: &str) -> IResult<&str, URL> {
     unimplemented!()
 }
 
 #[test]
-fn parse_url_test() {
+fn test_parse_url() {
     assert_eq!(
         parse_url("https://example.com:80/a/b?id=10#Index"),
         Ok((
