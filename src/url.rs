@@ -32,7 +32,7 @@ pub struct URL {
 }
 
 pub fn parse_url(_: &str) -> IResult<&str, URL> {
-    panic!()
+    unimplemented!()
 }
 
 #[test]
