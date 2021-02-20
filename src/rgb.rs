@@ -22,7 +22,7 @@ fn hex_primary(input: &str) -> IResult<&str, u8> {
     map_res(take_while_m_n(2, 2, is_hex_digit), from_hex)(input)
 }
 
-fn parse_hex(input: &str) -> IResult<&str, Color> {
+pub fn parse_hex(input: &str) -> IResult<&str, Color> {
     let (input, _) = tag("#")(input)?;
     let (input, (red, green, blue)) = tuple((hex_primary, hex_primary, hex_primary))(input)?;
 
