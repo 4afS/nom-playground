@@ -1,7 +1,7 @@
 use nom::combinator::map_res;
 use nom::{
     bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1, char, digit0},
+    character::complete::{alpha1, alphanumeric1, char, digit1},
 };
 use nom::{
     multi::many1,
@@ -82,6 +82,26 @@ fn test_parse_host() {
         parse_host("example.com/a"),
         Ok(("/a", Host("example.com".to_string())))
     );
+}
+
+fn parse_port(input: &str) -> IResult<&str, Option<Port>> {
+    let (input, _) = nom::combinator::opt(tag(":"))(input)?;
+    let (input, port): (&str, Option<&str>) = nom::combinator::opt(digit1)(input)?;
+    Ok((
+        input,
+        port.and_then(|s: &str| -> Option<Port> {
+            match s.to_string().parse::<u32>() {
+                Ok(n) => Some(Port(n)),
+                _ => None,
+            }
+        }),
+    ))
+}
+
+#[test]
+fn test_parse_port() {
+    assert_eq!(parse_port(":80/a"), Ok(("/a", Some(Port(80)))));
+    assert_eq!(parse_port("/a"), Ok(("/a", None)));
 }
 
 pub fn parse_url(_: &str) -> IResult<&str, URL> {
