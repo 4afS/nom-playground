@@ -1,10 +1,10 @@
 use std::unimplemented;
 
+use nom::sequence::delimited;
 use nom::{
     bytes::complete::tag,
     character::complete::{alpha1, alphanumeric1, char, digit1},
 };
-use nom::{combinator::map_res, sequence::delimited};
 use nom::{
     multi::{many0, many1, many_m_n},
     sequence::{terminated, tuple},
