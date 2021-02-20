@@ -37,7 +37,7 @@ pub struct URL {
     pub scheme: Scheme,
     pub host: Host,
     pub port: Option<Port>,
-    pub path: Path,
+    pub path: Option<Path>,
     pub query: Vec<Query>,
     pub fragment_id: Option<FragmentId>,
 }
@@ -169,8 +169,45 @@ fn test_parse_query() {
     assert_eq!(parse_query("#a"), Ok(("#a", vec![])));
 }
 
-pub fn parse_url(_: &str) -> IResult<&str, URL> {
-    unimplemented!()
+fn parse_fragment_id(input: &str) -> IResult<&str, Option<FragmentId>> {
+    let (input, fragment_id) = many_m_n(0, 1, tuple((tag("#"), alphanumeric1)))(input)?;
+    if !fragment_id.is_empty() {
+        Ok((input, Some(FragmentId(fragment_id[0].1.to_string()))))
+    } else {
+        Ok((input, None))
+    }
+}
+
+#[test]
+fn test_parse_fragment_id() {
+    assert_eq!(
+        parse_fragment_id("#a"),
+        Ok(("", Some(FragmentId("a".to_string()))))
+    );
+    assert_eq!(parse_fragment_id(""), Ok(("", None)));
+}
+
+pub fn parse_url(input: &str) -> IResult<&str, URL> {
+    let (input, url) = tuple((
+        parse_scheme,
+        parse_host,
+        parse_port,
+        parse_path,
+        parse_query,
+        parse_fragment_id,
+    ))(input)?;
+
+    Ok((
+        input,
+        URL {
+            scheme: url.0,
+            host: url.1,
+            port: url.2,
+            path: url.3,
+            query: url.4,
+            fragment_id: url.5,
+        },
+    ))
 }
 
 #[test]
@@ -183,7 +220,7 @@ fn test_parse_url() {
                 scheme: Scheme::HTTPS,
                 host: Host("example.com".to_string()),
                 port: Some(Port(80)),
-                path: Path("/a/b".to_string()),
+                path: Some(Path("/a/b".to_string())),
                 query: vec!(Query("id".to_string(), "10".to_string())),
                 fragment_id: Some(FragmentId("Index".to_string()))
             }
