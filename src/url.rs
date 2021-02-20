@@ -1,4 +1,13 @@
-use nom::IResult;
+use nom::combinator::map_res;
+use nom::{
+    bytes::complete::tag,
+    character::complete::{alpha1, alphanumeric1, char, digit0},
+};
+use nom::{
+    multi::many1,
+    sequence::{terminated, tuple},
+    IResult,
+};
 
 #[derive(Debug, PartialEq)]
 pub enum Scheme {
@@ -53,6 +62,25 @@ fn test_parse_scheme() {
     assert_eq!(
         parse_scheme("https://example.com"),
         Ok(("example.com", Scheme::HTTPS))
+    );
+}
+
+fn parse_host(input: &str) -> IResult<&str, Host> {
+    let (input, host) = tuple((many1(terminated(alphanumeric1, char('.'))), alpha1))(input)?;
+
+    Ok((input, Host(format!("{}.{}", host.0.join("."), host.1))))
+    // Ok((input, Host(host.1.to_string())))
+}
+
+#[test]
+fn test_parse_host() {
+    assert_eq!(
+        parse_host("host.example.com/a"),
+        Ok(("/a", Host("host.example.com".to_string())))
+    );
+    assert_eq!(
+        parse_host("example.com/a"),
+        Ok(("/a", Host("example.com".to_string())))
     );
 }
 
