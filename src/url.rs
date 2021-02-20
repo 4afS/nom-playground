@@ -133,6 +133,42 @@ fn test_parse_path() {
     assert_eq!(parse_path("?id=0"), Ok(("?id=0", None)));
 }
 
+fn parse_query(input: &str) -> IResult<&str, Vec<Query>> {
+    let (input, query) = many0(tuple((
+        nom::branch::alt((tag("?"), tag("&"))),
+        alphanumeric1,
+        char('='),
+        alphanumeric1,
+    )))(input)?;
+
+    Ok((
+        input,
+        query
+            .iter()
+            .map(|(_, key, _, value)| Query(key.to_string(), value.to_string()))
+            .collect::<Vec<_>>(),
+    ))
+}
+
+#[test]
+fn test_parse_query() {
+    assert_eq!(
+        parse_query("?a=0#a"),
+        Ok(("#a", vec![Query("a".to_string(), "0".to_string())]))
+    );
+    assert_eq!(
+        parse_query("?a=0&b=1#a"),
+        Ok((
+            "#a",
+            vec![
+                Query("a".to_string(), "0".to_string()),
+                Query("b".to_string(), "1".to_string())
+            ]
+        ))
+    );
+    assert_eq!(parse_query("#a"), Ok(("#a", vec![])));
+}
+
 pub fn parse_url(_: &str) -> IResult<&str, URL> {
     unimplemented!()
 }
