@@ -1,13 +1,12 @@
 use std::unimplemented;
 
-use nom::sequence::delimited;
 use nom::{
-    bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1, char, digit1},
-};
-use nom::{
+    bytes::complete::{tag, take_while},
+    character::complete::{alpha1, alphanumeric1, char},
+    character::is_digit,
+    combinator::opt,
     multi::{many0, many1, many_m_n},
-    sequence::{terminated, tuple},
+    sequence::{delimited, terminated, tuple},
     IResult,
 };
 
@@ -58,18 +57,10 @@ fn parse_host(input: &str) -> IResult<&str, Host> {
     Ok((input, Host(format!("{}.{}", host.0.join("."), host.1))))
 }
 
-fn parse_port(input: &str) -> IResult<&str, Option<Port>> {
-    let (input, _) = nom::combinator::opt(tag(":"))(input)?;
-    let (input, port): (&str, Option<&str>) = nom::combinator::opt(digit1)(input)?;
-    Ok((
-        input,
-        port.and_then(|s: &str| -> Option<Port> {
-            match s.to_string().parse::<u32>() {
-                Ok(n) => Some(Port(n)),
-                _ => None,
-            }
-        }),
-    ))
+fn parse_port(input: &str) -> IResult<&str, Port> {
+    let (input, _) = tag(":")(input)?;
+    let (input, port): (&str, &str) = take_while(|c| is_digit(c as u8))(input)?;
+    Ok((input, Port(port.parse::<u32>().unwrap())))
 }
 
 fn parse_path(input: &str) -> IResult<&str, Option<Path>> {
@@ -116,7 +107,7 @@ pub fn parse_url(input: &str) -> IResult<&str, URL> {
     let (input, url) = tuple((
         parse_scheme,
         parse_host,
-        parse_port,
+        opt(parse_port),
         parse_path,
         parse_query,
         parse_fragment_id,
@@ -161,8 +152,8 @@ fn test_parse_host() {
 
 #[test]
 fn test_parse_port() {
-    assert_eq!(parse_port(":80/a"), Ok(("/a", Some(Port(80)))));
-    assert_eq!(parse_port("/a"), Ok(("/a", None)));
+    assert_eq!(parse_port(":0/a"), Ok(("/a", Port(0))));
+    assert_eq!(parse_port(":65535/a"), Ok(("/a", Port(65535))));
 }
 
 #[test]
