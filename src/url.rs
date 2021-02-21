@@ -37,7 +37,7 @@ pub struct URL {
     pub host: Host,
     pub port: Option<Port>,
     pub path: Option<Path>,
-    pub query: Vec<Query>,
+    pub query: Option<Vec<Query>>,
     pub fragment_id: Option<FragmentId>,
 }
 
@@ -77,20 +77,16 @@ fn parse_path(input: &str) -> IResult<&str, Path> {
 }
 
 fn parse_query(input: &str) -> IResult<&str, Vec<Query>> {
-    let (input, query) = many0(tuple((
-        nom::branch::alt((tag("?"), tag("&"))),
-        alphanumeric1,
-        char('='),
-        alphanumeric1,
-    )))(input)?;
+    let query_with = |s| tuple((tag(s), alphanumeric1, char('='), alphanumeric1));
+    let (input, query) = tuple((query_with("?"), many0(query_with("&"))))(input)?;
 
-    Ok((
-        input,
-        query
-            .iter()
-            .map(|(_, key, _, value)| Query(key.to_string(), value.to_string()))
-            .collect::<Vec<_>>(),
-    ))
+    let mut queries = Vec::new();
+    queries.push(Query(query.0 .1.to_string(), query.0 .3.to_string()));
+    for q in query.1 {
+        queries.push(Query(q.1.to_string(), q.3.to_string()));
+    }
+
+    Ok((input, queries))
 }
 
 fn parse_fragment_id(input: &str) -> IResult<&str, Option<FragmentId>> {
@@ -108,7 +104,7 @@ pub fn parse_url(input: &str) -> IResult<&str, URL> {
         parse_host,
         opt(parse_port),
         opt(parse_path),
-        parse_query,
+        opt(parse_query),
         parse_fragment_id,
     ))(input)?;
 
@@ -182,7 +178,7 @@ fn test_parse_query() {
             ]
         ))
     );
-    assert_eq!(parse_query("#a"), Ok(("#a", vec![])));
+    assert_eq!(opt(parse_query)("#a"), Ok(("#a", None)));
 }
 
 #[test]
@@ -205,7 +201,7 @@ fn test_parse_url() {
                 host: Host("example.com".to_string()),
                 port: Some(Port(80)),
                 path: Some(Path("/a/b".to_string())),
-                query: vec!(Query("id".to_string(), "10".to_string())),
+                query: Some(vec!(Query("id".to_string(), "10".to_string()))),
                 fragment_id: Some(FragmentId("Index".to_string()))
             }
         ))
