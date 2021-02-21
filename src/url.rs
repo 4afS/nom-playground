@@ -43,10 +43,7 @@ pub struct URL {
 }
 
 fn parse_scheme(input: &str) -> IResult<&str, Scheme> {
-    let (input, scheme) = nom::branch::alt((
-        nom::bytes::complete::tag_no_case("http://"),
-        nom::bytes::complete::tag_no_case("https://"),
-    ))(input)?;
+    let (input, scheme) = nom::branch::alt((tag("http://"), tag("https://")))(input)?;
 
     match scheme {
         "http://" => Ok((input, Scheme::HTTP)),
@@ -55,35 +52,11 @@ fn parse_scheme(input: &str) -> IResult<&str, Scheme> {
     }
 }
 
-#[test]
-fn test_parse_scheme() {
-    assert_eq!(
-        parse_scheme("http://example.com"),
-        Ok(("example.com", Scheme::HTTP))
-    );
-    assert_eq!(
-        parse_scheme("https://example.com"),
-        Ok(("example.com", Scheme::HTTPS))
-    );
-}
-
 fn parse_host(input: &str) -> IResult<&str, Host> {
     let (input, host) = tuple((many1(terminated(alphanumeric1, char('.'))), alpha1))(input)?;
 
     Ok((input, Host(format!("{}.{}", host.0.join("."), host.1))))
     // Ok((input, Host(host.1.to_string())))
-}
-
-#[test]
-fn test_parse_host() {
-    assert_eq!(
-        parse_host("host.example.com/a"),
-        Ok(("/a", Host("host.example.com".to_string())))
-    );
-    assert_eq!(
-        parse_host("example.com/a"),
-        Ok(("/a", Host("example.com".to_string())))
-    );
 }
 
 fn parse_port(input: &str) -> IResult<&str, Option<Port>> {
@@ -100,12 +73,6 @@ fn parse_port(input: &str) -> IResult<&str, Option<Port>> {
     ))
 }
 
-#[test]
-fn test_parse_port() {
-    assert_eq!(parse_port(":80/a"), Ok(("/a", Some(Port(80)))));
-    assert_eq!(parse_port("/a"), Ok(("/a", None)));
-}
-
 fn parse_path(input: &str) -> IResult<&str, Option<Path>> {
     let (input, host) = many0(delimited(
         many_m_n(0, 1, char('/')),
@@ -118,19 +85,6 @@ fn parse_path(input: &str) -> IResult<&str, Option<Path>> {
     } else {
         Ok((input, None))
     }
-}
-
-#[test]
-fn test_parse_path() {
-    assert_eq!(
-        parse_path("/a/b?id=0"),
-        Ok(("?id=0", Some(Path("/a/b".to_string()))))
-    );
-    assert_eq!(
-        parse_path("/a?id=0"),
-        Ok(("?id=0", Some(Path("/a".to_string()))))
-    );
-    assert_eq!(parse_path("?id=0"), Ok(("?id=0", None)));
 }
 
 fn parse_query(input: &str) -> IResult<&str, Vec<Query>> {
@@ -150,25 +104,6 @@ fn parse_query(input: &str) -> IResult<&str, Vec<Query>> {
     ))
 }
 
-#[test]
-fn test_parse_query() {
-    assert_eq!(
-        parse_query("?a=0#a"),
-        Ok(("#a", vec![Query("a".to_string(), "0".to_string())]))
-    );
-    assert_eq!(
-        parse_query("?a=0&b=1#a"),
-        Ok((
-            "#a",
-            vec![
-                Query("a".to_string(), "0".to_string()),
-                Query("b".to_string(), "1".to_string())
-            ]
-        ))
-    );
-    assert_eq!(parse_query("#a"), Ok(("#a", vec![])));
-}
-
 fn parse_fragment_id(input: &str) -> IResult<&str, Option<FragmentId>> {
     let (input, fragment_id) = many_m_n(0, 1, tuple((tag("#"), alphanumeric1)))(input)?;
     if !fragment_id.is_empty() {
@@ -176,15 +111,6 @@ fn parse_fragment_id(input: &str) -> IResult<&str, Option<FragmentId>> {
     } else {
         Ok((input, None))
     }
-}
-
-#[test]
-fn test_parse_fragment_id() {
-    assert_eq!(
-        parse_fragment_id("#a"),
-        Ok(("", Some(FragmentId("a".to_string()))))
-    );
-    assert_eq!(parse_fragment_id(""), Ok(("", None)));
 }
 
 pub fn parse_url(input: &str) -> IResult<&str, URL> {
@@ -208,6 +134,77 @@ pub fn parse_url(input: &str) -> IResult<&str, URL> {
             fragment_id: url.5,
         },
     ))
+}
+
+#[test]
+fn test_parse_scheme() {
+    assert_eq!(
+        parse_scheme("http://example.com"),
+        Ok(("example.com", Scheme::HTTP))
+    );
+    assert_eq!(
+        parse_scheme("https://example.com"),
+        Ok(("example.com", Scheme::HTTPS))
+    );
+}
+
+#[test]
+fn test_parse_host() {
+    assert_eq!(
+        parse_host("host.example.com/a"),
+        Ok(("/a", Host("host.example.com".to_string())))
+    );
+    assert_eq!(
+        parse_host("example.com/a"),
+        Ok(("/a", Host("example.com".to_string())))
+    );
+}
+
+#[test]
+fn test_parse_port() {
+    assert_eq!(parse_port(":80/a"), Ok(("/a", Some(Port(80)))));
+    assert_eq!(parse_port("/a"), Ok(("/a", None)));
+}
+
+#[test]
+fn test_parse_path() {
+    assert_eq!(
+        parse_path("/a/b?id=0"),
+        Ok(("?id=0", Some(Path("/a/b".to_string()))))
+    );
+    assert_eq!(
+        parse_path("/a?id=0"),
+        Ok(("?id=0", Some(Path("/a".to_string()))))
+    );
+    assert_eq!(parse_path("?id=0"), Ok(("?id=0", None)));
+}
+
+#[test]
+fn test_parse_query() {
+    assert_eq!(
+        parse_query("?a=0#a"),
+        Ok(("#a", vec![Query("a".to_string(), "0".to_string())]))
+    );
+    assert_eq!(
+        parse_query("?a=0&b=1#a"),
+        Ok((
+            "#a",
+            vec![
+                Query("a".to_string(), "0".to_string()),
+                Query("b".to_string(), "1".to_string())
+            ]
+        ))
+    );
+    assert_eq!(parse_query("#a"), Ok(("#a", vec![])));
+}
+
+#[test]
+fn test_parse_fragment_id() {
+    assert_eq!(
+        parse_fragment_id("#a"),
+        Ok(("", Some(FragmentId("a".to_string()))))
+    );
+    assert_eq!(parse_fragment_id(""), Ok(("", None)));
 }
 
 #[test]
