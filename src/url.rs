@@ -153,6 +153,7 @@ fn test_parse_host() {
 fn test_parse_port() {
     assert_eq!(parse_port(":0/a"), Ok(("/a", Port(0))));
     assert_eq!(parse_port(":65535/a"), Ok(("/a", Port(65535))));
+    assert_eq!(opt(parse_port)("/a"), Ok(("/a", None)));
 }
 
 #[test]
