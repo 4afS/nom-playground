@@ -56,7 +56,6 @@ fn parse_host(input: &str) -> IResult<&str, Host> {
     let (input, host) = tuple((many1(terminated(alphanumeric1, char('.'))), alpha1))(input)?;
 
     Ok((input, Host(format!("{}.{}", host.0.join("."), host.1))))
-    // Ok((input, Host(host.1.to_string())))
 }
 
 fn parse_port(input: &str) -> IResult<&str, Option<Port>> {
