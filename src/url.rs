@@ -5,7 +5,7 @@ use nom::{
     character::complete::{alpha1, alphanumeric1, char},
     character::is_digit,
     combinator::opt,
-    multi::{many0, many1, many_m_n},
+    multi::{many0, many1},
     sequence::{terminated, tuple},
     IResult,
 };
@@ -89,13 +89,9 @@ fn parse_query(input: &str) -> IResult<&str, Vec<Query>> {
     Ok((input, queries))
 }
 
-fn parse_fragment_id(input: &str) -> IResult<&str, Option<FragmentId>> {
-    let (input, fragment_id) = many_m_n(0, 1, tuple((tag("#"), alphanumeric1)))(input)?;
-    if !fragment_id.is_empty() {
-        Ok((input, Some(FragmentId(fragment_id[0].1.to_string()))))
-    } else {
-        Ok((input, None))
-    }
+fn parse_fragment_id(input: &str) -> IResult<&str, FragmentId> {
+    let (input, fragment_id) = tuple((tag("#"), alphanumeric1))(input)?;
+    Ok((input, FragmentId(fragment_id.1.to_string())))
 }
 
 pub fn parse_url(input: &str) -> IResult<&str, URL> {
@@ -105,7 +101,7 @@ pub fn parse_url(input: &str) -> IResult<&str, URL> {
         opt(parse_port),
         opt(parse_path),
         opt(parse_query),
-        parse_fragment_id,
+        opt(parse_fragment_id),
     ))(input)?;
 
     Ok((
@@ -185,9 +181,9 @@ fn test_parse_query() {
 fn test_parse_fragment_id() {
     assert_eq!(
         parse_fragment_id("#a"),
-        Ok(("", Some(FragmentId("a".to_string()))))
+        Ok(("", FragmentId("a".to_string())))
     );
-    assert_eq!(parse_fragment_id(""), Ok(("", None)));
+    assert_eq!(opt(parse_fragment_id)(""), Ok(("", None)));
 }
 
 #[test]
