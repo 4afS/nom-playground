@@ -6,7 +6,7 @@ use nom::{
     character::is_digit,
     combinator::opt,
     multi::{many0, many1, many_m_n},
-    sequence::{delimited, terminated, tuple},
+    sequence::{terminated, tuple},
     IResult,
 };
 
@@ -53,7 +53,6 @@ fn parse_scheme(input: &str) -> IResult<&str, Scheme> {
 
 fn parse_host(input: &str) -> IResult<&str, Host> {
     let (input, host) = tuple((many1(terminated(alphanumeric1, char('.'))), alpha1))(input)?;
-
     Ok((input, Host(format!("{}.{}", host.0.join("."), host.1))))
 }
 
@@ -63,18 +62,18 @@ fn parse_port(input: &str) -> IResult<&str, Port> {
     Ok((input, Port(port.parse::<u32>().unwrap())))
 }
 
-fn parse_path(input: &str) -> IResult<&str, Option<Path>> {
-    let (input, host) = many0(delimited(
-        many_m_n(0, 1, char('/')),
-        alphanumeric1,
-        many_m_n(0, 1, char('/')),
-    ))(input)?;
+fn parse_path(input: &str) -> IResult<&str, Path> {
+    let (input, path) = many1(tuple((char('/'), alphanumeric1)))(input)?;
 
-    if !host.is_empty() {
-        Ok((input, Some(Path(format!("/{}", host.join("/"))))))
-    } else {
-        Ok((input, None))
-    }
+    Ok((
+        input,
+        Path(
+            path.iter()
+                .map(|(_, v)| format!("/{}", v))
+                .collect::<Vec<_>>()
+                .join(""),
+        ),
+    ))
 }
 
 fn parse_query(input: &str) -> IResult<&str, Vec<Query>> {
@@ -108,7 +107,7 @@ pub fn parse_url(input: &str) -> IResult<&str, URL> {
         parse_scheme,
         parse_host,
         opt(parse_port),
-        parse_path,
+        opt(parse_path),
         parse_query,
         parse_fragment_id,
     ))(input)?;
@@ -160,13 +159,10 @@ fn test_parse_port() {
 fn test_parse_path() {
     assert_eq!(
         parse_path("/a/b?id=0"),
-        Ok(("?id=0", Some(Path("/a/b".to_string()))))
+        Ok(("?id=0", Path("/a/b".to_string())))
     );
-    assert_eq!(
-        parse_path("/a?id=0"),
-        Ok(("?id=0", Some(Path("/a".to_string()))))
-    );
-    assert_eq!(parse_path("?id=0"), Ok(("?id=0", None)));
+    assert_eq!(parse_path("/a?id=0"), Ok(("?id=0", Path("/a".to_string()))));
+    assert_eq!(opt(parse_path)("?id=0"), Ok(("?id=0", None)));
 }
 
 #[test]
